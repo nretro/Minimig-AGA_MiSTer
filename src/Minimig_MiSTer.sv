@@ -56,7 +56,6 @@ module emu
    output [15:0] AUDIO_L,
    output [15:0] AUDIO_R,
    output        AUDIO_S, // 1 - signed audio samples, 0 - unsigned
-   input         TAPE_IN,
 
    input         IO_UIO,
    input         IO_FPGA,
@@ -109,7 +108,6 @@ module emu
 );
 
 assign USER_OUT = '1;
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
 
 
 ////////////////////////////////////////
@@ -151,7 +149,8 @@ wire           turbokick;
 wire           bootrom;   
 wire           cache_inhibit;
 wire [ 32-1:0] tg68_cad;
-wire [  6-1:0] tg68_cpustate;
+wire [    1:0] tg68_cpustate;
+wire           tg68_ramcs;
 wire           tg68_nrst_out;
 wire           tg68_clds;
 wire           tg68_cuds;
@@ -234,6 +233,8 @@ amiga_clk amiga_clk
 	.locked       (pll_locked       )  // pll locked output
 );
 
+wire DDR_EN = tg68_cad[28];
+wire SDR_EN = ~tg68_cad[28];
 
 TG68K tg68k
 (
@@ -242,8 +243,6 @@ TG68K tg68k
 	.clkena_in    (1'b1             ),
 	.IPL          (tg68_IPL         ),
 	.dtack        (tg68_dtack       ),
-	.vpa          (1'b1             ),
-	.ein          (1'b1             ),
 	.addr         (tg68_adr         ),
 	.data_read    (tg68_dat_in      ),
 	.data_write   (tg68_dat_out     ),
@@ -251,8 +250,6 @@ TG68K tg68k
 	.uds          (tg68_uds         ),
 	.lds          (tg68_lds         ),
 	.rw           (tg68_rw          ),
-	.vma          (                 ),
-	.wrd          (                 ),
 	.ena7RDreg    (tg68_ena7RD      ),
 	.ena7WRreg    (tg68_ena7WR      ),
 	.enaWRreg     (tg68_enaWR       ),
@@ -266,6 +263,7 @@ TG68K tg68k
 //	.ovr          (tg68_ovr         ), 
 	.bootrom      (bootrom          ),
 	.ramaddr      (tg68_cad         ),
+	.ramcs        (tg68_ramcs       ),
 	.nResetOut    (tg68_nrst_out    ),
 	.ramlds       (tg68_clds        ),
 	.ramuds       (tg68_cuds        ),
@@ -277,7 +275,9 @@ TG68K tg68k
 	.VBR_out      (tg68_VBR_out     )
 );
 
-sdram_ctrl sdram
+wire [ 16-1:0] tg68_cout1;
+wire           tg68_cpuena1;
+sdram_ctrl ram1
 (
 	.sysclk       (clk_86           ),
 	.reset_in     (pll_locked       ),
@@ -289,7 +289,7 @@ sdram_ctrl sdram
 	.cpu_cache_ctrl(tg68_CACR_out   ),
 
 	.sdata        (SDRAM_DQ         ),
-	.sdaddr       (SDRAM_A[12:0]    ),
+	.sdaddr       (SDRAM_A          ),
 	.dqm          ({SDRAM_DQMH, SDRAM_DQML}),
 	.sd_cs        (SDRAM_nCS        ),
 	.ba           (SDRAM_BA         ),
@@ -302,8 +302,9 @@ sdram_ctrl sdram
 	.cpuU         (tg68_cuds        ),
 	.cpuL         (tg68_clds        ),
 	.cpustate     (tg68_cpustate    ),
-	.cpuRD        (tg68_cout        ),
-	.cpuena       (tg68_cpuena      ),
+	.cpuCS        (SDR_EN & tg68_ramcs ),
+	.cpuRD        (tg68_cout1       ),
+	.cpuena       (tg68_cpuena1     ),
 	.enaWRreg     (tg68_enaWR       ),
 	.ena7RDreg    (tg68_ena7RD      ),
 	.ena7WRreg    (tg68_ena7WR      ),
@@ -317,6 +318,41 @@ sdram_ctrl sdram
 	.chipRD       (ramdata_in       ),
 	.chip48       (chip48           )
 );
+
+wire [ 16-1:0] tg68_cout2;
+wire           tg68_cpuena2;
+ddram_ctrl ram2
+(
+	.sysclk       (clk_86           ),
+	.reset_in     (pll_locked       ),
+
+	.cache_rst    (tg68_rst         ),
+	.cache_inhibit(cache_inhibit    ),
+	.cpu_cache_ctrl(tg68_CACR_out   ),
+
+	.DDRAM_CLK    (DDRAM_CLK        ),
+	.DDRAM_BUSY   (DDRAM_BUSY       ),
+	.DDRAM_BURSTCNT(DDRAM_BURSTCNT  ),
+	.DDRAM_ADDR   (DDRAM_ADDR       ),
+	.DDRAM_DOUT   (DDRAM_DOUT       ),
+	.DDRAM_DOUT_READY(DDRAM_DOUT_READY),
+	.DDRAM_RD     (DDRAM_RD         ),
+	.DDRAM_DIN    (DDRAM_DIN        ),
+	.DDRAM_BE     (DDRAM_BE         ),
+	.DDRAM_WE     (DDRAM_WE         ),
+
+	.cpuWR        (tg68_dat_out     ),
+	.cpuAddr      (tg68_cad[27:1]   ),
+	.cpuU         (tg68_cuds        ),
+	.cpuL         (tg68_clds        ),
+	.cpustate     (tg68_cpustate    ),
+	.cpuCS        (DDR_EN & tg68_ramcs ),
+	.cpuRD        (tg68_cout2       ),
+	.cpuena       (tg68_cpuena2     )
+);
+
+assign tg68_cout   = DDR_EN ? tg68_cout2   : tg68_cout1;
+assign tg68_cpuena = DDR_EN ? tg68_cpuena2 : tg68_cpuena1;
 
 assign IO_DOUT = IO_UIO ? uio_dout : fpga_dout;
 
@@ -456,7 +492,7 @@ minimig minimig
 	.memcfg       (memcfg           ), // memory config
 	.turbochipram (turbochipram     ), // turbo chipRAM
 	.turbokick    (turbokick        ), // turbo kickstart
-        .bootrom      (bootrom          ), // bootrom mode. Needed here to tell tg68k to also mirror the 256k Kickstart 
+	.bootrom      (bootrom          ), // bootrom mode. Needed here to tell tg68k to also mirror the 256k Kickstart 
 
 	.trackdisp    (                 ), // floppy track number
 	.secdisp      (                 ), // sector
