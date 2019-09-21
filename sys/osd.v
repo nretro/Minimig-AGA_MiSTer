@@ -11,12 +11,15 @@ module osd
 
 	input         clk_video,
 	input  [23:0] din,
-	output [23:0] dout,
 	input         de_in,
+	input         vs_in,
+	input         hs_in,
+	output [23:0] dout,
 	output reg    de_out,
-	input         f1,
+	output reg    vs_out,
+	output reg    hs_out,
 
-	output reg [1:0] amix
+	output reg    osd_status
 );
 
 parameter  OSD_COLOR    =  3'd4;
@@ -54,6 +57,7 @@ always@(posedge clk_sys) begin
 	hrheight <= info ? infoh : ((OSD_HEIGHT<<highres)+OSD_HDR);
 
 	old_strobe <= io_strobe;
+	osd_status <= 0;
 
 	if(~io_osd) begin
 		bcnt <= 0;
@@ -77,8 +81,6 @@ always@(posedge clk_sys) begin
 						if(io_din[3]) highres <= 1;
 					end
 				end else begin
-
-					if(cmd == 'h74) amix <= io_din[1:0];
 
 					// OSD_CMD_OSD: enable/disable
 					if(cmd == 'h28) begin
@@ -150,6 +152,7 @@ always @(posedge clk_video) begin
 	reg [21:0] osd_hcnt;
 	reg        osd_de1,osd_de2;
 	reg  [1:0] osd_en;
+	reg        f1;
 
 	if(ce_pix) begin
 
@@ -175,6 +178,7 @@ always @(posedge clk_video) begin
 
 			if(h_cnt > {dsp_width, 2'b00}) begin
 				v_cnt <= 1;
+				f1 <= ~f1; // skip every other frame for interlace compatibility.
 				if(~f1) begin
 
 					osd_en <= (osd_en << 1) | osd_enable;
@@ -217,19 +221,30 @@ end
 reg [23:0] rdout;
 assign dout = rdout;
 
-reg [23:0] osd_rdout, normal_rdout;
-reg osd_mux;
-reg de_dly;
-									 
 always @(posedge clk_video) begin
-	normal_rdout <= din;
-	osd_rdout <= {{osd_pixel, osd_pixel, OSD_COLOR[2], din[23:19]},// 23:16
-	              {osd_pixel, osd_pixel, OSD_COLOR[1], din[15:11]},// 15:8
-	              {osd_pixel, osd_pixel, OSD_COLOR[0], din[7:3]}}; //  7:0
+	reg [23:0] ordout1, nrdout1, rdout2, rdout3;
+	reg de1,de2,de3;
+	reg osd_mux;
+	reg vs1,vs2,vs3;
+	reg hs1,hs2,hs3;
+
+	nrdout1 <= din;
+	ordout1 <= {{osd_pixel, osd_pixel, OSD_COLOR[2], din[23:19]},// 23:16
+	            {osd_pixel, osd_pixel, OSD_COLOR[1], din[15:11]},// 15:8
+	            {osd_pixel, osd_pixel, OSD_COLOR[0], din[7:3]}}; //  7:0
+
 	osd_mux <= ~osd_de[2];
-	rdout  <= osd_mux ? normal_rdout : osd_rdout;
-	de_dly <= de_in;
-	de_out <= de_dly;
+	rdout2  <= osd_mux ? nrdout1 : ordout1;
+	rdout3  <= rdout2;
+
+	de1 <= de_in; de2 <= de1; de3 <= de2;
+	hs1 <= hs_in; hs2 <= hs1; hs3 <= hs2;
+	vs1 <= vs_in; vs2 <= vs1; vs3 <= vs2;
+
+	rdout   <= rdout3;
+	de_out  <= de3;
+	hs_out  <= hs3;
+	vs_out  <= vs3;
 end
 
 endmodule

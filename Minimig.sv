@@ -7,107 +7,121 @@
 
 module emu
 (
-   //Master input clock
-   input         CLK_50M,
+	//Master input clock
+	input         CLK_50M,
 	
-   //Async reset from top-level module.
-   //Can be used as initial reset.
-   input         RESET,
-
-   //Used as clock for IO_* signals in top module
-   output        CLK_SYS,
-   input         CLK_100,
+	//Async reset from top-level module.
+	//Can be used as initial reset.
+	input         RESET,
 	
-   //Base video clock. Usually equals to CLK_SYS.
-   output        CLK_VIDEO,
+	//Used as clock for IO_* signals in top module
+	output        CLK_SYS,
+	input         CLK_100,
+	input         IO_UIO,
+	input         IO_FPGA,
+	input         IO_OSD,
+	input         IO_STROBE,
+	output        IO_WAIT,
+	input  [15:0] IO_DIN,
+	output [15:0] IO_DOUT,
+	input         HDMI_VS,
+	
+	//Base video clock. Usually equals to CLK_SYS.
+	output        CLK_VIDEO,
+	
+	//Multiple resolutions are supported using different CE_PIXEL rates.
+	//Must be based on CLK_VIDEO
+	output        CE_PIXEL,
+	
+	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
+	output  [7:0] VIDEO_ARX,
+	output  [7:0] VIDEO_ARY,
+	
+	output  [7:0] VGA_R,
+	output  [7:0] VGA_G,
+	output  [7:0] VGA_B,
+	output        VGA_HS,
+	output        VGA_VS,
+	output        VGA_DE,    // = ~(VBlank | HBlank)
+	output        VGA_F1,
+	output  [1:0] VGA_SL,
+	
+	output        LED_USER,  // 1 - ON, 0 - OFF.
+	
+	// b[1]: 0 - LED status is system status OR'd with b[0]
+	//       1 - LED status is controled solely by b[0]
+	// hint: supply 2'b00 to let the system control the LED.
+	output  [1:0] LED_POWER,
+	output  [1:0] LED_DISK,
 
-   //Multiple resolutions are supported using different CE_PIXEL rates.
-   //Must be based on CLK_VIDEO
-   output        CE_PIXEL,
-
-   //Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
-   output  [7:0] VIDEO_ARX,
-   output  [7:0] VIDEO_ARY,
-
-   output  [7:0] VGA_R,
-   output  [7:0] VGA_G,
-   output  [7:0] VGA_B,
-   output        VGA_HS,
-   output        VGA_VS,
-   output        VGA_CS,
-   output        VGA_F1,
-   output  [1:0] VGA_SL,
-   input         HDMI_VS,
-
-   //NOTE: Scaler measures the frame width by first line.
-   //So, make sure DE is stable during the first active line!
-   output        VGA_DE,    // = ~(VBlank | HBlank)
-
-   output        LED_USER,  // 1 - ON, 0 - OFF.
-
-   // b[1]: 0 - LED status is system status ORed with b[0]
-   //       1 - LED status is controled solely by b[0]
-   // hint: supply 2'b00 to let the system control the LED.
-   output  [1:0] LED_POWER,
-   output  [1:0] LED_DISK,
-
-   input         BTN_USER,
-
-   output [15:0] AUDIO_L,
-   output [15:0] AUDIO_R,
-   output        AUDIO_S, // 1 - signed audio samples, 0 - unsigned
-
-   input         IO_UIO,
-   input         IO_FPGA,
-   input         IO_OSD,
-   input         IO_STROBE,
-   output        IO_WAIT,
-   input  [15:0] IO_DIN,
-   output [15:0] IO_DOUT,
-
-   //High latency DDR3 RAM interface
-   //Use for non-critical time purposes
-   output        DDRAM_CLK,
-   input         DDRAM_BUSY,
-   output  [7:0] DDRAM_BURSTCNT,
-   output [28:0] DDRAM_ADDR,
-   input  [63:0] DDRAM_DOUT,
-   input         DDRAM_DOUT_READY,
-   output        DDRAM_RD,
-   output [63:0] DDRAM_DIN,
-   output  [7:0] DDRAM_BE,
-   output        DDRAM_WE,
-
-   //SDRAM interface with lower latency
-   output        SDRAM_CLK,
-   output        SDRAM_CKE,
-   output [12:0] SDRAM_A,
-   output  [1:0] SDRAM_BA,
-   inout  [15:0] SDRAM_DQ,
-   output        SDRAM_DQML,
-   output        SDRAM_DQMH,
-   output        SDRAM_nCS,
-   output        SDRAM_nCAS,
-   output        SDRAM_nRAS,
-   output        SDRAM_nWE,
-
-   input         UART_CTS,
-   output        UART_RTS,
-   input         UART_RXD,
-   output        UART_TXD,
+	// I/O board button press simulation (active high)
+	// b[1]: user button
+	// b[0]: osd button
+	output  [1:0] BUTTONS,
+	
+	output [15:0] AUDIO_L,
+	output [15:0] AUDIO_R,
+	output        AUDIO_S, // 1 - signed audio samples, 0 - unsigned
+	output  [1:0] AUDIO_MIX, // 0 - no mix, 1 - 25%, 2 - 50%, 3 - 100% (mono)
+	
+	//ADC
+	inout   [3:0] ADC_BUS,
+	
+	//SD-SPI
+	output        SD_SCK,
+	output        SD_MOSI,
+	input         SD_MISO,
+	output        SD_CS,
+	input         SD_CD,
+	
+	//High latency DDR3 RAM interface
+	//Use for non-critical time purposes
+	output        DDRAM_CLK,
+	input         DDRAM_BUSY,
+	output  [7:0] DDRAM_BURSTCNT,
+	output [28:0] DDRAM_ADDR,
+	input  [63:0] DDRAM_DOUT,
+	input         DDRAM_DOUT_READY,
+	output        DDRAM_RD,
+	output [63:0] DDRAM_DIN,
+	output  [7:0] DDRAM_BE,
+	output        DDRAM_WE,
+	
+	//SDRAM interface with lower latency
+	output        SDRAM_CLK,
+	output        SDRAM_CKE,
+	output [12:0] SDRAM_A,
+	output  [1:0] SDRAM_BA,
+	inout  [15:0] SDRAM_DQ,
+	output        SDRAM_DQML,
+	output        SDRAM_DQMH,
+	output        SDRAM_nCS,
+	output        SDRAM_nCAS,
+	output        SDRAM_nRAS,
+	output        SDRAM_nWE,
+	
+	input         UART_CTS,
+	output        UART_RTS,
+	input         UART_RXD,
+	output        UART_TXD,
 	output        UART_DTR,
 	input         UART_DSR,
-
+	
 	// Open-drain User port.
 	// 0 - D+/RX
 	// 1 - D-/TX
-	// 2..5 - USR1..USR4
+	// 2..6 - USR2..USR6
 	// Set USER_OUT to 1 to read from USER_IN.
-	input   [5:0] USER_IN,
-	output  [5:0] USER_OUT
+	input   [6:0] USER_IN,
+	output  [6:0] USER_OUT,
+
+	input         OSD_STATUS
 );
 
+assign ADC_BUS  = 'Z;
 assign USER_OUT = '1;
+assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
+assign BUTTONS = 0;
 
 
 ////////////////////////////////////////
@@ -115,7 +129,7 @@ assign USER_OUT = '1;
 ////////////////////////////////////////
 
 // clock
-wire           clk_86;
+wire           clk_mem;
 wire           clk_28;
 wire           pll_locked;
 wire           clk_7;
@@ -139,7 +153,7 @@ wire           tg68_lds;
 wire           tg68_rw;
 wire           tg68_ena7RD;
 wire           tg68_ena7WR;
-wire           tg68_enaWR;
+wire           tg68_cpuEN;
 wire [ 16-1:0] tg68_cout;
 wire           tg68_cpuena;
 wire [  4-1:0] cpu_config;
@@ -206,8 +220,8 @@ assign VGA_HS       = ~hs;
 assign VGA_VS       = ~vs;
 assign VIDEO_ARX    = ar[0] ? 8'd16 : 8'd4;
 assign VIDEO_ARY    = ar[0] ? 8'd9  : 8'd3;
-assign CLK_VIDEO    = clk_28;
-assign CE_PIXEL     = 1;
+assign CLK_VIDEO    = clk_mem;
+assign CE_PIXEL     = ce_out;
 
 wire   IO_WAIT_UIO;
 wire   IO_WAIT_MM;
@@ -215,14 +229,45 @@ assign IO_WAIT      = IO_WAIT_UIO | IO_WAIT_MM;
 
 assign CLK_SYS      = clk_28;
 
+reg ce_out;
+always @(posedge CLK_VIDEO) begin
+	reg old_clk;
+	old_clk <= clk_28;
+	ce_out <= old_clk & ~clk_28;
+end
+
+pll pll
+(
+	.refclk(CLK_50M),
+	.outclk_0(clk_mem),
+	.outclk_1(SDRAM_CLK),
+	.outclk_2(clk_28),
+	.locked(pll_locked),
+
+	.phase_en(phase_en),
+	.scanclk(CLK_SYS),
+	.updn(updn),
+	.cntsel(1),
+	.phase_done(phase_done)
+);
+
+wire phase_en, updn, phase_done;
+phase_shift #(.M64MB(-5), .M128MB(-8)) phase_shift
+(
+	.clk(CLK_SYS),
+	.pll_locked(pll_locked),
+
+	.phase_en(phase_en),
+	.updn(updn),
+	.phase_done(phase_done),
+
+	.sdram_sz(sdram_sz)
+);
+
 //// amiga clocks ////
 amiga_clk amiga_clk
 (
-	.rst          (0                ), // async reset input
-	.clk_in       (CLK_50M          ), // input clock     ( 50.000000MHz)
-	.clk_86       (clk_86           ), // output clock c0 (86.0625000MHz)
-	.clk_sdram    (SDRAM_CLK        ), // output clock c2 (86.0625000MHz, shifted)
-	.clk_28       (clk_28           ), // output clock c1 ( 28.687500MHz)
+	.clk_28       (clk_28           ), // input  clock c1 ( 28.687500MHz)
 	.clk_7        (clk_7            ), // output clock 7  (  7.171875MHz) DO NOT USE IT AS A CLOCK!
 	.clk7_en      (clk7_en          ), // output clock 7 enable (on 28MHz clock domain)
 	.clk7n_en     (clk7n_en         ), // 7MHz negedge output clock enable (on 28MHz clock domain)
@@ -238,9 +283,9 @@ wire SDR_EN = ~tg68_cad[28];
 
 TG68K tg68k
 (
-	.clk          (clk_86           ),
+	.clk          (clk_mem          ),
 	.reset        (tg68_rst         ),
-	.clkena_in    (1'b1             ),
+	.clkena_in    (tg68_cpuEN       ),
 	.IPL          (tg68_IPL         ),
 	.dtack        (tg68_dtack       ),
 	.addr         (tg68_adr         ),
@@ -252,7 +297,6 @@ TG68K tg68k
 	.rw           (tg68_rw          ),
 	.ena7RDreg    (tg68_ena7RD      ),
 	.ena7WRreg    (tg68_ena7WR      ),
-	.enaWRreg     (tg68_enaWR       ),
 	.fromram      (tg68_cout        ),
 	.ramready     (tg68_cpuena      ),
 	.cpu          (cpu_config[1:0]  ),
@@ -276,10 +320,10 @@ TG68K tg68k
 );
 
 wire [ 16-1:0] tg68_cout1;
-wire           tg68_cpuena1;
+wire           tg68_ramready1;
 sdram_ctrl ram1
 (
-	.sysclk       (clk_86           ),
+	.sysclk       (clk_mem          ),
 	.reset_in     (pll_locked       ),
 	.c_7m         (clk_7            ),
 	.reset_out    (                 ),
@@ -304,8 +348,8 @@ sdram_ctrl ram1
 	.cpustate     (tg68_cpustate    ),
 	.cpuCS        (SDR_EN & tg68_ramcs ),
 	.cpuRD        (tg68_cout1       ),
-	.cpuena       (tg68_cpuena1     ),
-	.enaWRreg     (tg68_enaWR       ),
+	.ramready     (tg68_ramready1   ),
+	.cpuEN        (tg68_cpuEN       ),
 	.ena7RDreg    (tg68_ena7RD      ),
 	.ena7WRreg    (tg68_ena7WR      ),
 
@@ -320,10 +364,10 @@ sdram_ctrl ram1
 );
 
 wire [ 16-1:0] tg68_cout2;
-wire           tg68_cpuena2;
+wire           tg68_ramready2;
 ddram_ctrl ram2
 (
-	.sysclk       (clk_86           ),
+	.sysclk       (clk_mem          ),
 	.reset_in     (pll_locked       ),
 
 	.cache_rst    (tg68_rst         ),
@@ -348,17 +392,19 @@ ddram_ctrl ram2
 	.cpustate     (tg68_cpustate    ),
 	.cpuCS        (DDR_EN & tg68_ramcs ),
 	.cpuRD        (tg68_cout2       ),
-	.cpuena       (tg68_cpuena2     )
+	.ramready     (tg68_ramready2   )
 );
 
-assign tg68_cout   = DDR_EN ? tg68_cout2   : tg68_cout1;
-assign tg68_cpuena = DDR_EN ? tg68_cpuena2 : tg68_cpuena1;
+assign tg68_cout   = DDR_EN ? tg68_cout2     : tg68_cout1;
+assign tg68_cpuena = DDR_EN ? tg68_ramready2 : tg68_ramready1;
 
 assign IO_DOUT = IO_UIO ? uio_dout : fpga_dout;
 
 wire [15:0] uio_dout;
 wire [15:0] fpga_dout;
 wire        ce_pix;
+wire [15:0] sdram_sz;
+wire  [1:0] buttons;
 
 hps_io hps_io
 (
@@ -372,7 +418,7 @@ hps_io hps_io
 	.IO_DIN(IO_DIN),
 	.IO_DOUT(uio_dout),
 	
-	.BUTTONS(),
+	.BUTTONS(buttons),
 	.CONF(),
 
 	.JOY0(joya),
@@ -387,7 +433,7 @@ hps_io hps_io
 	.RTC(rtc),
 
 	.clk_100(CLK_100),
-	.clk_vid(CLK_VIDEO),
+	.clk_vid(clk_28),
 	.ce_pix(ce_pix),
 	.de(VGA_DE),
 	.hs(~hs),
@@ -425,7 +471,7 @@ minimig minimig
 	.chip48       (chip48           ), // big chipram read
 
 	//system  pins
-	.rst_ext      (BTN_USER         ), // reset from ctrl block
+	.rst_ext      (buttons[1]       ), // reset from ctrl block
 	.rst_out      (                 ), // minimig reset status
 	.clk          (clk_28           ), // output clock c1 ( 28.687500MHz)
 	.clk7_en      (clk7_en          ), // 7MHz clock enable
@@ -471,7 +517,6 @@ minimig minimig
 	//video
 	._hsync       (hs               ), // horizontal sync
 	._vsync       (vs               ), // vertical sync
-	._csync       (VGA_CS           ),
 	.field1       (VGA_F1           ),
 	.red          (VGA_R            ), // red
 	.green        (VGA_G            ), // green
@@ -486,6 +531,7 @@ minimig minimig
 	//audio
 	.ldata        (ldata            ), // left DAC data
 	.rdata        (rdata            ), // right DAC data
+	.aud_mix      (AUDIO_MIX        ),
 
 	//user i/o
 	.cpu_config   (cpu_config       ), // CPU config

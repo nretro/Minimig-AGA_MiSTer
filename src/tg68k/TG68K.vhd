@@ -44,7 +44,6 @@ entity TG68K is
     rw            : out     std_logic;
     ena7RDreg     : in      std_logic:='1';
     ena7WRreg     : in      std_logic:='1';
-    enaWRreg      : in      std_logic:='1';
     fromram       : in      std_logic_vector(15 downto 0);
     ramready      : in      std_logic:='0';
     cpu           : in      std_logic_vector(1 downto 0);
@@ -330,48 +329,46 @@ PROCESS (clk, fastramcfg, autoconfig_out, cpuaddr) BEGIN
 			z3ram_base0<="00000001";
 			z3ram_base1<="0000001";
 			z3ram_base2<="0001";
-		ELSIF enaWRreg='1' THEN
-			IF sel_autoconfig='1' AND state="11"AND uds_in='0' AND clkena='1' THEN
-				CASE cpuaddr(6 downto 1) IS
-					WHEN "100100" => -- Register 0x48 - config
-						IF autoconfig_out="001" THEN
-							z2ram_ena <= '1';
-							autoconfig_out<="010";
-						END IF;
-						turbochip_ena <= '1';  -- enable turbo_chipram after autoconfig has been done...
-                            -- FIXME - this is a hack to allow ROM overlay to work.
-					WHEN "100010" => -- Register 0x44, assign base address to ZIII RAM.
-						IF autoconfig_out="010" THEN
-							z3ram_base0<=data_write(15 downto 8);
-							z3ram_ena0 <='1';
-							if (fastramcfg = "100" OR fastramcfg = "110") then
-								autoconfig_out <= "011";
-							elsif (fastramcfg = "101") then
-								autoconfig_out <= "100";
-							else
-								autoconfig_out <= "000";
-							end if;
-						END IF;
-
-						IF autoconfig_out="011" THEN
-							z3ram_base1<=data_write(15 downto 9);
-							z3ram_ena1 <='1';
-							if (fastramcfg = "110") then
-								autoconfig_out <= "100";
-							else
-								autoconfig_out <= "000";
-							end if;
-						END IF;
-
-						IF autoconfig_out="100" THEN
-							z3ram_base2<=data_write(15 downto 12);
-							z3ram_ena2 <='1';
+		ELSIF sel_autoconfig='1' AND state="11"AND uds_in='0' AND clkena='1' THEN
+			CASE cpuaddr(6 downto 1) IS
+				WHEN "100100" => -- Register 0x48 - config
+					IF autoconfig_out="001" THEN
+						z2ram_ena <= '1';
+						autoconfig_out<="010";
+					END IF;
+					turbochip_ena <= '1';  -- enable turbo_chipram after autoconfig has been done...
+								 -- FIXME - this is a hack to allow ROM overlay to work.
+				WHEN "100010" => -- Register 0x44, assign base address to ZIII RAM.
+					IF autoconfig_out="010" THEN
+						z3ram_base0<=data_write(15 downto 8);
+						z3ram_ena0 <='1';
+						if (fastramcfg = "100" OR fastramcfg = "110") then
+							autoconfig_out <= "011";
+						elsif (fastramcfg = "101") then
+							autoconfig_out <= "100";
+						else
 							autoconfig_out <= "000";
-						END IF;
-					WHEN others =>
-						null;
-				END CASE;
-			END IF;
+						end if;
+					END IF;
+
+					IF autoconfig_out="011" THEN
+						z3ram_base1<=data_write(15 downto 9);
+						z3ram_ena1 <='1';
+						if (fastramcfg = "110") then
+							autoconfig_out <= "100";
+						else
+							autoconfig_out <= "000";
+						end if;
+					END IF;
+
+					IF autoconfig_out="100" THEN
+						z3ram_base2<=data_write(15 downto 12);
+						z3ram_ena2 <='1';
+						autoconfig_out <= "000";
+					END IF;
+				WHEN others =>
+					null;
+			END CASE;
 		END IF;
 	END IF;
 END PROCESS;
